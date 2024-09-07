@@ -12,9 +12,9 @@ use Illuminate\Support\Facades\Hash;
 class AuthController extends Controller
 {
     public function login(Request $request){
-
+ 
         $request->validate([
-            'email' => 'sometimes|nullable|email',
+            'email' => 'required|nullable|email',
             'password' => 'required',
         ]);
 
