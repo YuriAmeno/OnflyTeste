@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreUserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Database\QueryException;
@@ -20,17 +21,34 @@ class UserController extends Controller
         return UserResource::collection($users);
     }
 
-
-    public function store(Request $request)
-    {
+    public function firstLogin(Request $request){
         try {
-
             $request->validate([
-                "name"=> ['required', 'string', 'max:64'],
-                "email"=>  ['required', 'email', 'unique:users', 'max:255'],
-                "password"=> ['required', Password::defaults()],
+                "name" => ['required', 'string', 'max:64'],
+                "email" =>  ['required', 'email', 'unique:users', 'max:255'],
+                "password" => ['required', 'string', 'min:8'],
             ]);
 
+            $data = $request->all();
+            Arr::set($data,'password', Hash::make($data['password']));
+
+            $task = User::create($data);
+    
+            return new UserResource($task);
+        } catch (\Exception $e) {
+            if ($e instanceof QueryException) {
+                $message = 'Erro ao cadastrar usúario.';
+            }
+            return response()->json([
+                'message' => $message ?? $e->getMessage()
+            ], 400);
+        }
+    }
+
+
+    public function store(StoreUserRequest $request)
+    {
+        try {
             
             $data = $request->all();
             Arr::set($data,'password', Hash::make($data['password']));
@@ -53,13 +71,37 @@ class UserController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $data = User::findOrFail($id);
+
+        return new UserResource($data);
     }
 
   
     public function update(Request $request, string $id)
     {
-        //
+        try {
+            $request->validate([
+                "name" => ['required', 'string', 'max:64'],
+                "email" =>  ['sometimes', 'email', 'unique:users', 'max:255'],
+            ]);
+            
+            $data = $request->all();
+
+            $user = User::find($id);
+
+            $user->name = Arr::get($data, 'name');
+            $user->email = Arr::get($data, 'email');
+            $user->save();
+
+            return new UserResource($user);
+        } catch (\Exception $e) {
+            if ($e instanceof QueryException) {
+                $message = 'Erro ao atualizar despesa.';
+            }
+            return response()->json([
+                'message' => $message ?? $e->getMessage()
+            ], 400);
+        }
     }
 
     /**
