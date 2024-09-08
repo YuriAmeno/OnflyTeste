@@ -6,13 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\LoginResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function login(Request $request){
- 
+    public function login(Request $request)
+    {
+
         $request->validate([
             'email' => 'required|nullable|email',
             'password' => 'required',
@@ -26,8 +28,8 @@ class AuthController extends Controller
             abort(401, 'Invalid Credentials');
         }
 
-        $token = $user->createToken('auth_token');
-        return new LoginResource($token);
+        $token = $user->createToken('auth_token')->plainTextToken;
+        return new LoginResource(['plainTextToken' => $token]);
     }
 
     public function logout(Request $request)
@@ -35,5 +37,4 @@ class AuthController extends Controller
         $request->user()->currentAccessToken()->delete();
         return response()->json([], 204);
     }
-
 }

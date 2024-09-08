@@ -47,16 +47,4 @@ class EnviarEmail extends Notification
             ->action('Clique aqui e deixe sua recomendação', url('https://www.linkedin.com/in/yuriameno/'))
             ->line('Obrigado por utilizar minha API!');
     }
-
-    /**
-     * Get the array representation of the notification.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
-    {
-        return [
-            //
-        ];
-    }
 }

@@ -7,7 +7,6 @@ class MoneyMask
    
     public static function moneyExtensive($valor = 0, $bolExibirMoeda = true, $bolPalavraFeminina = false)
     {
-//      $valor = self::removerFormatacaoNumero($valor);
         $singular = null;
         $plural = null;
         if ($bolExibirMoeda) {

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('id_usuario')
+            $table->foreignId('user_id')
                 ->references('id')
                 ->on('users');
             $table->string('description');

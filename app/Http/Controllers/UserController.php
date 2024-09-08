@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -21,14 +22,8 @@ class UserController extends Controller
         return UserResource::collection($users);
     }
 
-    public function firstLogin(Request $request){
+    public function firstLogin(StoreUserRequest $request){
         try {
-            $request->validate([
-                "name" => ['required', 'string', 'max:64'],
-                "email" =>  ['required', 'email', 'unique:users', 'max:255'],
-                "password" => ['required', 'string', 'min:8'],
-            ]);
-
             $data = $request->all();
             Arr::set($data,'password', Hash::make($data['password']));
 
@@ -110,10 +105,14 @@ class UserController extends Controller
     public function destroy(string $id)
     {
         $user = User::find($id);
-
+        $tasks = Task::where('user_id', $user->id)->get();
         try {
+            $tasks ->each(function ($task) {  
+                $task->delete();
+            }); 
             $user->delete();
-            return response()->json(['message' => 'Usuário excluído com sucesso!']);
+
+            return response()->json(['message' => 'Usuário e suas despesas excluídos com sucesso!', 'data' => new UserResource($user)],200);
         } catch (\Exception $e) {
             if ($e instanceof QueryException) {
                 $message = 'Erro ao deletar usuário.';

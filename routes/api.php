@@ -7,14 +7,13 @@ use Illuminate\Support\Facades\Route;
 
 
 
-Route::post('login', [AuthController::class, 'login'])
+Route::post('/login', [AuthController::class, 'login'])
 ->name('login');
 
-Route::post('logout', [AuthController::class, 'logout'])
+Route::post('/logout', [AuthController::class, 'logout'])
 ->middleware(['auth:sanctum']);
 
-Route::post('first-login', [UserController::class, 'firstLogin']);
-
+Route::post('/first-login', [UserController::class, 'firstLogin']);
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::resource('/users', UserController::class);
