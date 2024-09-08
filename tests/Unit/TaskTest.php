@@ -6,6 +6,7 @@ use App\Jobs\EnviarEmailJob;
 use App\Models\Task;
 use App\Models\User;
 use App\Notifications\EnviarEmail;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Hash;
@@ -16,19 +17,55 @@ use Faker\Factory as Faker;
 
 class TaskTest extends TestCase
 {
-    public function loginAndGetToken()
+
+    public function createUserLogin()
     {
-        $faker = Faker::create();
         $password = '12345678';
-        $dataUser = User::factory()->create([
+        $user = User::factory()->create([
             'name' => 'Charles',
-            'email' => $faker->unique()->safeEmail,
+            'email' => 'ycameno' . time() . '@gmail.com',
             'password' => Hash::make($password),
         ]);
+        return [
+            'user' => $user,
+            'password' => $password,
+        ];
+    }
+    public function loginAndGetToken()
+    {
+       if (!User::first()) {
+            $data = $this->createUserLogin();
+            $user = $data['user'];
+            $password = $data['password'];
+
+            $loginResponse = $this->postJson('/api/login', [
+                'email' => $user->email,
+                'password' => $password,
+            ]);
+
+            $loginResponse->assertStatus(200)
+                ->assertJsonStructure([
+                    'data' => [
+                        'api_token',
+                    ]
+                ]);
+
+            // Obtém o token da resposta
+            $token = $loginResponse->json('data.api_token');
+
+            // Retorna o token e o usuário logado
+            return [
+                'token' => $token,
+                'user' => $user,
+                'response' => $loginResponse
+            ];
+        }
+
+        $user = User::first();
 
         $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
+            'email' => $user->email,
+            'password' => '12345678',
         ]);
 
         $loginResponse->assertStatus(200)
@@ -44,150 +81,102 @@ class TaskTest extends TestCase
         // Retorna o token e o usuário logado
         return [
             'token' => $token,
-            'user' => $dataUser,
+            'user' => $user,
+            'response' => $loginResponse
         ];
+
+        
     }
 
     public function test_create_a_task()
     {
         Queue::fake();
         Notification::fake();
-        
-        $password = '12345678';
-        $dataUser = User::factory()->create([
-            'id' => 2,
-            'name' => 'Charles',
-            'email' => 'ycameno@gmail.com',
-            'password' => Hash::make($password),
-        ]);
 
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        if ($loginResponse->getStatusCode() === 200) {
-            $loginResponse->assertStatus(200)
-                ->assertJsonStructure([
-                    'data' => [
-                        'api_token',
-                    ]
-                ]);
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
 
-            // Obtém o token da resposta
-            $token = $loginResponse->json('data.api_token');
-
-            // Faz a request POST para criar um usuário
-            $response = $this->withHeader('Authorization', 'Bearer ' . $token)
-                ->json('post', '/api/tasks', [
-                    'id' => 1,
-                    'description' => 'Venda NIKE',
-                    'value' => 199,
-                    'user_id' => $dataUser->id,
-                    'data' => '2024-09-08',
-                ]);
-
-
-            // Verifica se o usuário foi criado com sucesso
-            $response->assertStatus(201)
-                ->assertJson([
-                    'id' => 1, // Garantir que o ID está correto
-                    'description' => 'Venda NIKE',
-                    'data' => now()->toDateString(),
-                    'value' => '199.00',
-                    'user' => [
-                        'id' => 2,
-                        'name' => 'Charles',
-                        'email' => 'ycameno@gmail.com',
-                    ],
-                    'createdAt' => now()->toDateTimeString(),
-                    'updatedAt' => now()->toDateTimeString(),
-                ]);
-
-            // Verifica se a task foi criada no banco de dados
-            $this->assertDatabaseHas('tasks', [
+        // Faz a request POST para criar um usuário
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->json('post', '/api/tasks', [
+                'id' => 1,
                 'description' => 'Venda NIKE',
                 'value' => 199,
-                'user_id' => 2,
+                'user_id' => $user->id,
+                'data' => '2024-09-08',
             ]);
 
-            $taskId = $response->json('id');
-            $task = Task::find($taskId);
 
-            $user =  $task->user;
+        // Verifica se o usuário foi criado com sucesso
+        $response->assertStatus(201)
+            ->assertJson([
+                'id' => 1, // Garantir que o ID está correto
+                'description' => 'Venda NIKE',
+                'data' => now()->toDateString(),
+                'value' => '199.00',
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ],
+                'createdAt' => now()->toDateTimeString(),
+                'updatedAt' => now()->toDateTimeString(),
+            ]);
 
-            EnviarEmailJob::dispatch($user, $task);
-            Queue::assertPushed(EnviarEmailJob::class, function ($job) use ($user, $task) {
-                return $job->user->id === $user->id && $job->task->id === $task->id;
-            });
-            
-            $task->user->notify(new EnviarEmail($task));
-            Notification::assertSentTo($task->user, EnviarEmail::class);
-        } else {
-            $loginResponse->assertStatus(401);
-        }
+        // Verifica se a task foi criada no banco de dados
+        $this->assertDatabaseHas('tasks', [
+            'description' => 'Venda NIKE',
+            'value' => 199,
+            'user_id' => $user->id,
+        ]);
+
+        $taskId = $response->json('id');
+        $task = Task::find($taskId);
+
+        $user =  $task->user;
+
+        EnviarEmailJob::dispatch($user, $task);
+        Queue::assertPushed(EnviarEmailJob::class, function ($job) use ($user, $task) {
+            return $job->user->id === $user->id && $job->task->id === $task->id;
+        });
+        
+        $task->user->notify(new EnviarEmail($task));
+        Notification::assertSentTo($task->user, EnviarEmail::class);
+         
     }
 
     public function test_prevents_invalid_create_attempts()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
 
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
+        $response = $this->withHeader('Authorization', 'Bearer ' . $token)
+            ->json('post', '/api/tasks', [
+                'id' => 1,
+                'description' => 2231,
+                'value' => 199,
+                'user_id' => $user->id,
+                'data' => '2024-09-08',
+            ]);
+
+        $response->assertStatus(422);
         
-        if ($loginResponse->getStatusCode() === 200){
-            $loginResponse->assertStatus(200)
-                ->assertJsonStructure([
-                    'data' => [
-                        'api_token',
-                    ]
-                ]);
-
-            // Obtém o token da resposta
-            $token = $loginResponse->json('data.api_token');
-
-            $dataUser = User::find(2);
-            $response = $this->withHeader('Authorization', 'Bearer ' . $token)
-                ->json('post', '/api/tasks', [
-                    'id' => 1,
-                    'description' => 2231,
-                    'value' => 199,
-                    'user_id' => $dataUser->id,
-                    'data' => '2024-09-08',
-                ]);
-
-            $response->assertStatus(422);
-        }
     }
 
     public function test_prevents_invalid_date_create_attempts()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
 
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-
-
-        $dataUser = User::find(2);
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->json('post', '/api/tasks', [
                 'id' => 1,
                 'description' => 'teste',
                 'value' => 199,
-                'user_id' => $dataUser->id,
+                'user_id' => $user->id,
                 'data' => now()->subDay()->toDateString(),
             ]);
 
@@ -196,31 +185,16 @@ class TaskTest extends TestCase
 
     public function test_prevents_invalid_value_create_attempts()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
 
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-
-
-        $dataUser = User::find(2);
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->json('post', '/api/tasks', [
                 'id' => 1,
                 'description' => 'teste',
                 'value' => 0,
-                'user_id' => $dataUser->id,
+                'user_id' => $user->id,
                 'data' => now()->toDateString(),
             ]);
 
@@ -229,22 +203,9 @@ class TaskTest extends TestCase
 
     public function  test_get_a_task()
     {
-        $password = '12345678';
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
 
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-        // Faz a request POST para criar um usuário
         $response = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->json('get', '/api/users');
 
@@ -253,25 +214,11 @@ class TaskTest extends TestCase
 
     public function test_get_a_specific_task()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $loginResponse = $auth['response'];
 
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-        // Faz uma request GET para pegar uma task específica (por exemplo, task com ID 1)
+        // Faz uma request GET para pegar uma task específica
         $taskResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
             ->json('GET', '/api/tasks/1');
 
@@ -299,26 +246,12 @@ class TaskTest extends TestCase
 
     public function test_update_a_task()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
+        $loginResponse = $auth['response'];
 
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-
-        $user = User::find(2);
-        $task = Task::find(1);
+        $task = Task::first();
 
         // Define os novos dados para a atualização do usuário
         if ($user->id === $task->user_id) {
@@ -351,26 +284,12 @@ class TaskTest extends TestCase
 
     public function test_prevents_update_task_description_attempts()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
+        $loginResponse = $auth['response'];
 
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-
-        $user = User::find(2);
-        $task = Task::find(1);
+        $task = Task::first();
 
         // Define os novos dados para a atualização do usuário
         if ($user->id === $task->user_id) {
@@ -395,26 +314,12 @@ class TaskTest extends TestCase
 
     public function test_prevents_update_task_value_attempts()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
+        $loginResponse = $auth['response'];
 
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-
-        $user = User::find(2);
-        $task = Task::find(1);
+        $task = Task::first();
 
         // Define os novos dados para a atualização do usuário
         if ($user->id === $task->user_id) {
@@ -439,26 +344,12 @@ class TaskTest extends TestCase
 
     public function test_prevents_update_task_data_attempts()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $user = $auth['user'];
+        $loginResponse = $auth['response'];
 
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-
-        $user = User::find(2);
-        $task = Task::find(1);
+        $task = Task::first();
 
         // Define os novos dados para a atualização do usuário
         if ($user->id === $task->user_id) {
@@ -483,24 +374,11 @@ class TaskTest extends TestCase
 
     public function test_delete_a_task()
     {
-        $password = '12345678';
+        $auth = $this->loginAndGetToken();
+        $token = $auth['token'];
+        $loginResponse = $auth['response'];
 
-        // Faz a request POST para login e pega o token
-        $loginResponse = $this->postJson('/api/login', [
-            'email' => 'ycameno@gmail.com',
-            'password' => $password,
-        ]);
-        $loginResponse->assertStatus(200)
-            ->assertJsonStructure([
-                'data' => [
-                    'api_token',
-                ]
-            ]);
-
-        // Obtém o token da resposta
-        $token = $loginResponse->json('data.api_token');
-
-        $task = Task::find(1);
+        $task = Task::first();
 
         // Faz a request delete para excluir o usuário
         $deleteResponse = $this->withHeader('Authorization', 'Bearer ' . $token)
