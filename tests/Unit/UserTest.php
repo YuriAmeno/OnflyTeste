@@ -111,7 +111,7 @@ class UserTest extends TestCase
         $response = $this->postJson('/api/first-login', [
             'name' => 'aaa',
             'email' => 'amenoyuri1@',
-            'password' => `passrd123`,
+            'password' => 'passrd123',
         ]);
 
         $response->assertStatus(422);
