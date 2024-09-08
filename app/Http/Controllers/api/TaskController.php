@@ -6,15 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Jobs\EnviarEmailJob;
-use App\Mail\CreatedTask;
 use App\Models\Task;
-use App\Notifications\EnviarEmail;
-use App\Utils\MoneyMask;
 use Illuminate\Database\QueryException;
-use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Mail;
+
 
 class TaskController extends Controller
 {

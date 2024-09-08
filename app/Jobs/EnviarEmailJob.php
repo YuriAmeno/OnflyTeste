@@ -15,8 +15,8 @@ class EnviarEmailJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $user;
-    protected $task;
+    public $user;
+    public $task;
 
     public function __construct(User $user, $task)
     {
