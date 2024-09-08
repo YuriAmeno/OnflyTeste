@@ -21,7 +21,6 @@ class StoreTaskRequest extends FormRequest
      */
     public function rules(): array
     {
-        // dd($this->validated());
         return [
             'description' => ['string','max:191'],
             'data' => ['date_equals:today','date_format:Y-m-d'],
