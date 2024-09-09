@@ -48,9 +48,9 @@ class UserController extends Controller
             $data = $request->all();
             Arr::set($data,'password', Hash::make($data['password']));
 
-            $task = User::create($data);
+            $user = User::create($data);
     
-            return new UserResource($task);
+            return new UserResource($user);
         } catch (\Exception $e) {
             if ($e instanceof QueryException) {
                 $message = 'Erro ao cadastrar usúario.';
@@ -91,7 +91,7 @@ class UserController extends Controller
             return new UserResource($user);
         } catch (\Exception $e) {
             if ($e instanceof QueryException) {
-                $message = 'Erro ao atualizar despesa.';
+                $message = 'Erro ao atualizar cliente.';
             }
             return response()->json([
                 'message' => $message ?? $e->getMessage()
