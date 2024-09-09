@@ -19,15 +19,10 @@ class EnsureTokenIsValid
     {
         $token = $request->bearerToken();  // Obtenha o token do cabeçalho Authorization
 
-        if (!$token || !$this->isValidToken($token)) {
+        if (!$token) {
             return response()->json(['error' => 'Invalid Token'], 401);
         }
 
         return $next($request);
-    }
-
-    private function isValidToken($token)
-    {
-        return true;
     }
 }
