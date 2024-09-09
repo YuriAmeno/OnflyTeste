@@ -28,7 +28,6 @@ class EnsureTokenIsValid
 
     private function isValidToken($token)
     {
-        // Implemente a lógica de validação do token aqui
-        return true;  // Exemplo de lógica de validação
+        return true;
     }
 }
