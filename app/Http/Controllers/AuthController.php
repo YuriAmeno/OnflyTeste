@@ -17,7 +17,7 @@ class AuthController extends Controller
 
         $request->validate([
             'email' => 'required|nullable|email',
-            'password' => 'required',
+            'password' => 'required|max:25',
         ]);
 
         $user = User::query()
