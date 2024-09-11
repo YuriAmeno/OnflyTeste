@@ -8,10 +8,13 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::post('/login', [AuthController::class, 'login'])
-->name('login');
+    ->name('login');
 
 Route::post('/logout', [AuthController::class, 'logout'])
-->middleware(['auth:sanctum']);
+    ->middleware(['auth:sanctum']);
+
+Route::get('verify_token', [AuthController::class, 'verifyToken'])
+    ->middleware('auth:sanctum');
 
 Route::post('/first-login', [UserController::class, 'firstLogin']);
 

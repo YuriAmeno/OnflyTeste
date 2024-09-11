@@ -32,6 +32,11 @@ class AuthController extends Controller
         return new LoginResource(['plainTextToken' => $token]);
     }
 
+    public function verifyToken(Request $request): UserResource
+    {
+        return new UserResource($request->user());
+    }
+
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
