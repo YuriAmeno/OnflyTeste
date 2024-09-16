@@ -15,10 +15,16 @@ class Task extends Model
         'description',
         'data',
         'value',
-        'user_id'
+        'user_id',
+        'category_id'
     ];
 
     public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function product_category(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
