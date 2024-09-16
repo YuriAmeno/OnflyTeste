@@ -61,19 +61,20 @@ class TaskController extends Controller
     public function update(StoreTaskRequest $request, string $id)
     {
         $task = Task::find($id);
-        
+
         if (Gate::denies('updateTask', $task)) {
             return response()->json(['message' => 'Usuário não tem permissão para editar essa despesa'], 403);
         }
-        
+
         try {
             $data = $request->all();
-           
+
             $task->description = Arr::get($data, 'description');
             $task->data = Arr::get($data, 'data');
             $task->value = Arr::get($data, 'value');
             $task->user_id = Arr::get($data, 'user_id');
-            
+            $task->category_id = Arr::get($data, 'category_id');
+
             $task->save();
 
             $task->load('user');

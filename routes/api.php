@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\api\TaskController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ProductCategoryController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,4 +22,5 @@ Route::post('/first-login', [UserController::class, 'firstLogin']);
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::resource('/users', UserController::class);
     Route::resource('/tasks', TaskController::class);
+    Route::resource('/product-categories', ProductCategoryController::class);
 });
